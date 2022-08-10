@@ -16,7 +16,7 @@ import numpy as np
 
 # Parametros y variables
 
-PACKAGE_NAME = "reemc_pose_imitation"
+PACKAGE_NAME = "/reemc_pose_imitation"
 NODE_NAME = "human_pose_points"
 TOPIC_S1_CAMERA = "/usb_cam/image_raw"
 TOPIC_P1_POSE = "pose_human"
@@ -26,7 +26,7 @@ BRIDGE = CvBridge()
 
 
 class HumanPose:
-    """Person object"""
+    """HumanPose object"""
 
     def __init__(self):
         self._subTopicFlagName = None
@@ -131,15 +131,15 @@ def main():
     print("#"*70)
     print(f"\t\t* TEST MODE *\t NODE: {NODE_NAME}")
     print("#"*70)
+    time.sleep(1)
     rospy.init_node(NODE_NAME)
     rospy.loginfo(f"NODO {NODE_NAME} INICIADO.")
-    """Inicializar el objeto object_pos"""
+    """Inicializar el objeto HumanPose"""
     objNode = HumanPose()
     objNode.subTopicImageSourceName = TOPIC_S1_CAMERA
     objNode.pubTopicPoseNodeName = TOPIC_P1_POSE
     objNode.start_subscribers()
     objNode.start_publishers()
-    time.sleep(1)
     INFO1 = True
     INFO2 = True
     while not rospy.is_shutdown():

@@ -25,5 +25,5 @@
 
     <!-- Start reemc_pose_imitation nodes -->
     <node pkg="reemc_pose_imitation" ns="reemc_pose_imitation" type="human_pose.py" name="human_pose" output="screen" launch-prefix="gnome-terminal --command"></node>
-    <!--<node pkg="reemc_pose_imitation" ns="reemc_pose_imitation" type="transformations_pose.py" name="transformations_pose" output="screen" launch-prefix="gnome-terminal command"></node>-->
+    <node pkg="reemc_pose_imitation" ns="reemc_pose_imitation" type="transformations_pose.py" name="transformations_pose" output="screen" launch-prefix="gnome-terminal --command"></node>
 </launch>
