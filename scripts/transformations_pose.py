@@ -26,6 +26,7 @@ class Transformations:
         self.paramPoints = []
         self.paramJointNames = []
         self.points = []
+        self.webPoints = []
 
     """ Properties """
     @property
@@ -53,22 +54,28 @@ class Transformations:
         pass
 
     def get_param_values(self) -> None:
+        # Params from play_motion file
         self.paramJointNames = rospy.get_param('/play_motion/motions/my_move/joints')
         self.paramPoints = rospy.get_param('/play_motion/motions/my_move/points')
         Points = list(self.paramPoints[0].values())
         self.points = Points[0]
+        # Params from web UI interface
+        self.webPoints = rospy.get_param('/web_points/points')
 
     def set_param_values(self) -> None:
         AuxparamPoints = self.paramPoints[0]
         AuxparamPoints['positions'] = self.points
         self.paramPoints[0] = AuxparamPoints
         rospy.set_param('/play_motion/motions/my_move/points',self.paramPoints)
+        # Intentar actualizar solo Joints de interes 
 
     def transformations(self) -> None:
+        # Order of Points
+        JointsList = [7,26,22,9,5,6,0,27,13,18,21,4,2,17,8,3,15,10]
         # Points to be modified: 
         self.get_param_values()
-        self.points[0] = 1.3
-        self.points[1] = 0.8 
+        for i in range(len(JointsList)):
+            self.points[JointsList[i]] = self.webPoints[i]
         self.set_param_values() 
         print(self.paramJointNames)
         time.sleep(1)
