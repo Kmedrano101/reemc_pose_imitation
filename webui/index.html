@@ -26,31 +26,18 @@
         console.log('Connection to websocket server closed.');
     });
 
-  // Publishing a Topic
-  // ------------------
-
-    var cmdVel = new ROSLIB.Topic({
+    //Publish topics
+    var actMoves = new ROSLIB.Topic({
         ros : ros,
-        name : '/cmd_vel',
-        messageType : 'geometry_msgs/Twist'
+        name : '/activar_movimientos',
+        messageType : 'std_msgs/Bool'
     });
-
-    var twist = new ROSLIB.Message({
-        linear : {
-            x : 0.1,
-            y : 0.2,
-            z : 0.3
-        },
-        angular : {
-            x : -0.1,
-            y : -0.2,
-            z : -0.3
-        }
+    
+    var actValue = new ROSLIB.Message({
+        data: false
     });
-    cmdVel.publish(twist);
-
-  // Subscribing to a Topic
-  // ----------------------
+   // Subscribing to a Topic
+   // ----------------------
     var imageTopic = new ROSLIB.Topic({
         ros : ros,
         name : '/usb_cam/image_raw/compressed',
@@ -59,17 +46,6 @@
 
     imageTopic.subscribe(function(message) {
         document.getElementById('my_image').src = "data:image/jpg;base64," + message.data;
-        listener.unsubscribe();
-    });
-
-    var listener = new ROSLIB.Topic({
-        ros : ros,
-        name : '/listener',
-        messageType : 'std_msgs/String'
-    });
-
-    listener.subscribe(function(message) {
-        console.log('Received message on ' + listener.name + ': ' + message.data);
         listener.unsubscribe();
     });
 
@@ -84,147 +60,197 @@
         ros : ros,
         name : '/web_points/points'
     });
-    
+
+    var img_src_path = new ROSLIB.Param({
+        ros : ros,
+        name : '/image_source/name'
+    });
+
+    // Funcion para enviar los parametros de los sliders a servidor de parametros,
+    // Modo manual de operacion
     function sendValues(){ 
         const values = [];
-        values[0] = parseFloat(document.getElementById('joint_1').value)
-        values[1] = parseFloat(document.getElementById('joint_2').value)
-        values[2] = parseFloat(document.getElementById('joint_3').value)
-        values[3] = parseFloat(document.getElementById('joint_4').value)
-        values[4] = parseFloat(document.getElementById('joint_5').value)
-        values[5] = parseFloat(document.getElementById('joint_6').value)
-        values[6] = parseFloat(document.getElementById('joint_7').value)
-        values[7] = parseFloat(document.getElementById('joint_8').value)
-        values[8] = parseFloat(document.getElementById('joint_9').value)
-        values[9] = parseFloat(document.getElementById('joint_10').value)
-        values[10] = parseFloat(document.getElementById('joint_11').value)
-        values[11] = parseFloat(document.getElementById('joint_12').value)
-        values[12] = parseFloat(document.getElementById('joint_13').value)
-        values[13] = parseFloat(document.getElementById('joint_14').value)
-        values[14] = parseFloat(document.getElementById('joint_15').value)
-        values[15] = parseFloat(document.getElementById('joint_16').value)
-        values[16] = parseFloat(document.getElementById('joint_17').value)
-        values[17] = parseFloat(document.getElementById('joint_18').value)
+        var jointName = "joint_";
+        for (var i = 0; i <18;i++){
+            jointName = jointName + (i+1);
+            values[i] = parseFloat(document.getElementById(jointName).value);
+            jointName = "joint_";
+        }
         points.set(values);
-        console.log(values)
     }
+    // Funcion para cargar imagen y obtener el nombre del mismo
+    var loadFile = function(event) {
+        var output = document.getElementById('img_source');
+        img_src_path.set(event.target.files[0].name);
+        output.src = URL.createObjectURL(event.target.files[0]);
+        output.onload = function() {
+            URL.revokeObjectURL(output.src); 
+        }
+    };
+    // Funcion para enviar la orden de realizar movimientos en el robot
+    function sendActions(){
+        var image = new Image();
+        actValue.data = true; 
+        actMoves.publish(actValue);
+        image.onload = function () {
+            document.getElementById('img_poses').setAttribute('src', this.src);
+        };
+        image.src = "/home/kmedrano101/catkin_ws/src/reemc_pose_imitation/img/img_poses.jpg#"+ new Date().getTime();
+    }
+
 </script>
 </head>
 
 <body>
     <h1>Reem-c Pose Imitation</h1>
-    <p>Imagen</p>
-    <img id="my_image" style='height: 320; width: 640; object-fit: contain' src="">
+    <div>
+        <p>Imagen desde Topico</p>
+        <img id="my_image" style="width:320px;height:auto;"/>
+        <p>Cargar Imagen</p>
+        <input type="file" accept="image/*" onchange="loadFile(event)">
+        <table>
+            <tr>
+                <th>Imagen Original</th>
+                <th>Imagen con Poses</th>
+            </tr>
+            <tr>
+                <th><img id="img_source" style="width:320px;height:auto;"/></th>
+                <th><img id="img_poses" style="width:320px;height:auto;"/></th>
+            </tr>
+        </table>
+    </div>
+    <button style="padding: 12px 70px;" type="button" onclick="sendActions()">Activar Movimientos</button>
     <h1>Joints to move</h1>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_1" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_2" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_3" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_4" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_5" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_6" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_7" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_8" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_9" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_10" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_11" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_12" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_13" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_14" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_15" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_16" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_17" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <div>
-        <label for="volume">Joint</label>
-        <input type="range" id="joint_18" name="Joint_X"
-            min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
-        <output></output>
-    </div>
-    <button style="padding: 12px 70px;" type="button" onclick="sendValues()">Send Points</button> 
+    <table>
+        <tr>
+            <th>Joints Left</th>
+            <th>Joints Right</th>
+            <th>Joints head</th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_1</p>
+                <input type="range" id="joint_1" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_1</p>
+                <input type="range" id="joint_8" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_torso_1</p>
+                <input type="range" id="joint_15" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_2</p>
+                <input type="range" id="joint_2" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_2</p>
+                <input type="range" id="joint_9" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_torso_2</p>
+                <input type="range" id="joint_16" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_3</p>
+                <input type="range" id="joint_3" name="Joint_X"
+                    min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_3</p>
+                <input type="range" id="joint_10" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_head_1</p>
+                <input type="range" id="joint_17" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_4</p>
+                <input type="range" id="joint_4" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_4</p>
+                <input type="range" id="joint_11" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_head_2</p>
+                <input type="range" id="joint_18" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_5</p>
+                <input type="range" id="joint_5" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_5</p>
+                <input type="range" id="joint_12" name="Joint_X"
+                    min="-3.0" max="3.0" step="0.1" oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_6</p>
+                <input type="range" id="joint_6" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_6</p>
+                <input type="range" id="joint_13" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+        <tr>
+            <th>
+                <p>Joint_left_7</p>
+                <input type="range" id="joint_7" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+            <th>
+                <p>Joint_right_7</p>
+                <input type="range" id="joint_14" min="-3.0" max="3.0" step="0.1" 
+                    oninput="this.nextElementSibling.value = this.value">
+                <output></output>
+            </th>
+        </tr>
+    </table>
+    <button style="padding: 12px 70px;" type="button" onclick="sendValues()">Enviar Valores</button> 
 
 </body>
 </html>
