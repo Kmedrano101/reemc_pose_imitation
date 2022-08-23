@@ -66,6 +66,17 @@
         name : '/image_source/name'
     });
 
+    // Servidor de parametro para modo de control
+    var control_mode = new ROSLIB.Param({
+        ros : ros,
+        name: '/operation_mode'
+    })
+    function sendManual(){
+        control_mode.set(1)
+    }
+    function sendAutimatic(){
+        control_mode.set(0)
+    }
     // Funcion para enviar los parametros de los sliders a servidor de parametros,
     // Modo manual de operacion
     function sendValues(){ 
@@ -89,20 +100,34 @@
     };
     // Funcion para enviar la orden de realizar movimientos en el robot
     function sendActions(){
-        var image = new Image();
+        var iter = 0;
         actValue.data = true; 
         actMoves.publish(actValue);
+        var image = new Image();
+        setTimeout(loadImage,600)
         image.onload = function () {
             document.getElementById('img_poses').setAttribute('src', this.src);
         };
         image.src = "/home/kmedrano101/catkin_ws/src/reemc_pose_imitation/img/img_poses.jpg#"+ new Date().getTime();
     }
+    function loadImage(){
+        var image = new Image();
+        image.src = "/home/kmedrano101/catkin_ws/src/reemc_pose_imitation/img/img_poses.jpg#"+ new Date().getTime();
+        document.getElementById('img_poses').setAttribute('src', image.src);
+    }   
 
 </script>
 </head>
 
 <body>
     <h1>Reem-c Pose Imitation</h1>
+    <p>Modo de Control</p>
+    <form name="myForm">
+        <fieldset id="group1">
+            <input type="radio" value="manual" name="group1" onclick="sendManual();" checked>Manaul<br>
+            <input type="radio" value="automatico" name="group1" onclick="sendAutimatic();">Automatico<br>
+        </fieldset>
+    </form>
     <div>
         <p>Imagen desde Topico</p>
         <img id="my_image" style="width:320px;height:auto;"/>
