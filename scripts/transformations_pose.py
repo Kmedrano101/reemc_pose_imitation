@@ -18,7 +18,7 @@ except ROSException:
 
 PACKAGE_NAME = "/reemc_pose_imitation"
 NODE_NAME = "transformations_pose"
-TOPIC_S1_POSE = "/pose_human"
+TOPIC_S1_POSE = PACKAGE_NAME+"/pose_human"
 # Class Agent
 
 
@@ -66,21 +66,20 @@ class Transformations:
         # Obtener todos los paramatros de los archivos .yaml dentro de reem-c y reemc_pose_imitation
         self.paramJointNames = rospy.get_param('/play_motion/motions/my_move2/joints')
         self.paramPoints = rospy.get_param('/play_motion/motions/my_move2/points')
-        self.imgWeight = rospy.get_param("/image_source/weight")
-        self.imgHeight = rospy.get_param("/image_source/height")
+        self.imgWeight = rospy.get_param("/reemc_pose_imitation/image_source/weight")
+        self.imgHeight = rospy.get_param("/reemc_pose_imitation/image_source/height")
+        self.localPoints = rospy.get_param('/reemc_pose_imitation/local_points/points')
+        # Params from web UI interface
+        self.webPoints = rospy.get_param('/reemc_pose_imitation/web_points/points')
+        self.mode = rospy.get_param("/reemc_pose_imitation/operation_mode", default=0)
         Points = list(self.paramPoints[0].values())
         self.points = Points[0]
-        self.localPoints = rospy.get_param('/local_points/points')
-        # Params from web UI interface
-        self.webPoints = rospy.get_param('/web_points/points')
-        self.mode = rospy.get_param("/operation_mode", default=0)
 
     def set_param_values(self) -> None:
         AuxparamPoints = self.paramPoints[0]
         AuxparamPoints['positions'] = self.points
         self.paramPoints[0] = AuxparamPoints
         rospy.set_param('/play_motion/motions/my_move2/points',self.paramPoints)
-        # Intentar actualizar solo Joints de interes 
 
     def get_angle(self, p1, p2, p3) -> float: # input values make it as a dict 
         angle = 0
@@ -143,8 +142,8 @@ class Transformations:
                 # Joints Head 
                 d1 = self.get_distance(self.posePoints[0][1],self.posePoints[7][1],self.posePoints[0][2],self.posePoints[7][2])
                 d2 = self.get_distance(self.posePoints[0][1],self.posePoints[8][1],self.posePoints[0][2],self.posePoints[8][2])
-                print("distancia 1: ",d1)
-                print("distancia 2: ",d2)
+                #print("distancia 1: ",d1)
+                #print("distancia 2: ",d2)
                 if d1 > d2:
                     # Validar valor > Limites minimos
                     if abs(d1-d2) < d1*0.58:

@@ -23,15 +23,15 @@ except ROSException:
 PACKAGE_NAME = "/reemc_pose_imitation"
 NODE_NAME = "human_pose_points"
 IMG_MODE = rospy.get_param("image_source/mode", default=0)
-TOPIC_S1_IMG = '/usb_cam/image_raw'
-TOPIC_S2_IMG = '/activar_movimientos'
+TOPIC_S1_IMG = PACKAGE_NAME+"/webcam/image_raw"
+TOPIC_S2_IMG = PACKAGE_NAME+"/activar_movimientos"
 if int(IMG_MODE) == 1:
-    TOPIC_S1_IMG = rospy.get_param("image_source/video_path",default="/videofile/image")
+    TOPIC_S1_IMG = rospy.get_param(PACKAGE_NAME+"/image_source/video_path",default="/videofile/image")
 if int(IMG_MODE) == 2:
-    TOPIC_S1_IMG = rospy.get_param("image_source/usb_cam",default="/usb_cam/image_raw")
-TOPIC_P1_POSE = "pose_human"
+    TOPIC_S1_IMG = rospy.get_param(PACKAGE_NAME+"/image_source/usb_cam",default="/webcam/image_raw")
+TOPIC_P1_POSE = PACKAGE_NAME+"/pose_human"
 IMG_PATH = '/home/kmedrano101/catkin_ws/src/reemc_pose_imitation/img/' # Cambiar dir otrher machine user name change
-IMG_NAME = rospy.get_param("image_source/name", default='javi1')
+IMG_NAME = rospy.get_param(PACKAGE_NAME+"/image_source/name", default='javi1')
 BRIDGE = CvBridge()
 
 # Clase HumanPose
@@ -103,7 +103,7 @@ class HumanPose:
                 self.mpDraw.draw_landmarks(
                     self.cvFrame, self.results.pose_landmarks, self.mpPose.POSE_CONNECTIONS)
 
-    def find_position(self,img, draw=True) -> None:
+    def send_positions(self,img, draw=True) -> None:
         lmAux = human_pose()
         dataPoint = Point()
         dataPose = point_pose()
@@ -163,12 +163,12 @@ class HumanPose:
 
     def get_param_values(self) -> None:
         # Obtener todos los paramatros 
-        self.imgName = rospy.get_param("image_source/name", default='javi1')
+        self.imgName = rospy.get_param("/reemc_pose_imitation/image_source/name", default='javi1')
 
     def set_param_values(self) -> None:
         h,w,_ = self.cvFrame.shape
-        rospy.set_param("/image_source/weight",w)
-        rospy.set_param("/image_source/height",h)
+        rospy.set_param("/reemc_pose_imitation/image_source/weight",w)
+        rospy.set_param("/reemc_pose_imitation/image_source/height",h)
 
 def main():
     system('clear')
@@ -198,11 +198,11 @@ def main():
                 path_img = IMG_PATH+objNode.imgName
                 objNode.cvFrame = cv.imread(path_img)
         if not objNode.dataReceivedTopic1 and INFO2:
-            print("[WARNING] Datos no recibidos, esperando datos...")
+            print("[WARNING] Datos de imagen no recibidos, esperando datos...")
             INFO2 = False
         elif np.array(objNode.cvFrame).size:
-            objNode.find_pose(objNode.cvFrame)
-            objNode.find_position(objNode.cvFrame,draw=False)
+            objNode.find_pose(objNode.cvFrame) # coge los datos de pose con mediapipe
+            objNode.send_positions(objNode.cvFrame,draw=False) # crea tus variables de pose y los publica
             if objNode.readyCapturePose and INFO1:
                 rospy.loginfo("READY TO CAPTURE DATA")
                 INFO1 = False

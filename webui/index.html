@@ -29,7 +29,7 @@
     //Publish topics
     var actMoves = new ROSLIB.Topic({
         ros : ros,
-        name : '/activar_movimientos',
+        name : '/reemc_pose_imitation/activar_movimientos',
         messageType : 'std_msgs/Bool'
     });
     
@@ -39,8 +39,9 @@
    // Subscribing to a Topic
    // ----------------------
     var imageTopic = new ROSLIB.Topic({
-        ros : ros,
-        name : '/usb_cam/image_raw/compressed',
+        ros : ros, 
+        name : '/webcam/image_raw/compressed',
+        //name : '/usb_cam/image_raw/compressed',
         messageType : 'sensor_msgs/CompressedImage'
     });
 
@@ -58,18 +59,18 @@
 
     var points = new ROSLIB.Param({
         ros : ros,
-        name : '/web_points/points'
+        name : '/reemc_pose_imitation/web_points/points'
     });
 
     var img_src_path = new ROSLIB.Param({
         ros : ros,
-        name : '/image_source/name'
+        name : '/reemc_pose_imitation/image_source/name'
     });
 
     // Servidor de parametro para modo de control
     var control_mode = new ROSLIB.Param({
         ros : ros,
-        name: '/operation_mode'
+        name: '/reemc_pose_imitation/operation_mode'
     })
     function sendManual(){
         control_mode.set(1)

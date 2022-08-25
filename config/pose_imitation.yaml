@@ -6,20 +6,17 @@ local_points:
   points: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
           0.0, 0.0, 0.0, 0.0, 0.0]
 
+operation_mode: 1 # 0 Automatic Mode 1 Manual
+
 image_source:
   name: 'javi1.jpg'
   weight: 0
   height: 0
   img_path: '/home/ros/catkin_ws/src/reemc_pose_imitation/img/head1.jpg'
   video_path: '/videofile/image'
-  usb_cam: '/usb_cam/image_raw'
+  usb_cam: '/webcam/image_raw'
   mode: 0 # 0 img source mode, 1 video source mode, 2 usb_cam mode
 
-operation_mode: 1 # 0 Automatic Mode 1 Manual 
-
-web_points:
-  points: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-          0.0, 0.0, 0.0, 0.0, 0.0]
 
 image_pose:
   name: 'image_pos.jpg'

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+
+    <!-- Console launch prefix -->
+    <arg name="launch_prefix" default=""/>
+    <arg name="image" default="/usb_cam/image_raw"/>
+
+    <!-- Config files folder. -->
+    <arg name="pose_imitation_params_file"     default="$(find reemc_pose_imitation)/config/pose_imitation.yaml"/>
+    <!-- Cometar la siguiente linea ejecutando Kinetic (Solo simula el parametro de kinetic)-->
+    <arg name="motions_params_file"     default="$(find reemc_pose_imitation)/config/motions.yaml"/>
+
+    <!-- Load parameters -->
+    <rosparam command="load" ns="reemc_pose_imitation"    file="$(arg pose_imitation_params_file)"/>
+    <!-- Cometar la siguiente linea ejecutando Kinetic (Solo simula el parametro de kinetic) -->
+    <rosparam command="load"        file="$(arg motions_params_file)"/>
+
+    <!-- Start reemc_pose_imitation nodes -->
+    <node pkg="reemc_pose_imitation" ns="reemc_pose_imitation" type="human_pose.py" name="human_pose" output="screen" launch-prefix="gnome-terminal --command"></node>
+    <node pkg="reemc_pose_imitation" ns="reemc_pose_imitation" type="transformations_pose.py" name="transformations_pose" output="screen" launch-prefix="gnome-terminal --command"></node>
+</launch>
