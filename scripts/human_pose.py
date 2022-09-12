@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 
-# Importar modulos
+"""Human_pose.py script to get all 33 pose data from a single 2D images
+
+    Descriptions:
+        Image source: the single image can be get from three different ways
+                        a specific path "my_image.jpg", a ROS topic in this case from the usb-cam
+                        or a video file.
+        Main module: for this porpose this script is using mediapipe module from google
+        Main function:   get all the 33 pose from a 2D image and public the data through a ROS topic 
+"""
+# Import modules from ROS resources
+
 import rospy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
@@ -8,17 +18,23 @@ from cv_bridge import CvBridge, CvBridgeError
 from rospy.exceptions import ROSException
 from geometry_msgs.msg import Point
 from reemc_pose_imitation.msg import point_pose, human_pose
+
+# import modules from others resource
+
 import mediapipe as mp
 import time
 from os import system
 import cv2 as cv
 from copy import deepcopy
 import numpy as np
-# Parametros y variables
+
+# Parameters and variables
+
 try:
+    # verify if parameters are available
     rospy.get_param_names()
 except ROSException:
-    print("[WARNING] No se puede obtener los nombres de parametros")
+    print("[WARNING] can not get the parameters")
 
 PACKAGE_NAME = "/reemc_pose_imitation"
 NODE_NAME = "human_pose_points"
@@ -30,7 +46,7 @@ if int(IMG_MODE) == 1:
 if int(IMG_MODE) == 2:
     TOPIC_S1_IMG = rospy.get_param(PACKAGE_NAME+"/image_source/usb_cam",default="/webcam/image_raw")
 TOPIC_P1_POSE = PACKAGE_NAME+"/pose_human"
-IMG_PATH = '/home/kmedrano101/catkin_ws/src/reemc_pose_imitation/img/' # Cambiar dir otrher machine user name change
+IMG_PATH = '/home/kmedrano101/catkin_ws/src/reemc_pose_imitation/img/'
 IMG_NAME = rospy.get_param(PACKAGE_NAME+"/image_source/name", default='javi1')
 BRIDGE = CvBridge()
 
@@ -55,6 +71,7 @@ class HumanPose:
         self.imgName = ''
         self.lastImage = []
         self.statusAction = False
+        self.poses_data = human_pose()
 
     """Properties"""
 
@@ -96,6 +113,12 @@ class HumanPose:
     """ Methods and Actions"""
 
     def find_pose(self,img, draw=True) -> None:
+        """Function to get all the 33 poses with the mediapipe module
+
+        Args:
+            img (cv_img): image
+            draw (bool, optional): to draw the image and be able to see the poses. Defaults to True.
+        """
         imgRGB = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         self.results = self.pose.process(imgRGB)
         if self.results.pose_landmarks:
@@ -103,14 +126,18 @@ class HumanPose:
                 self.mpDraw.draw_landmarks(
                     self.cvFrame, self.results.pose_landmarks, self.mpPose.POSE_CONNECTIONS)
 
-    def send_positions(self,img, draw=True) -> None:
-        lmAux = human_pose()
+    def send_positions(self,img) -> None:
+        """ Save date into a ROS message types and send them through a ROS topic
+
+        Args:
+            img (cv_img): image
+        """
+        # Define ROS messages
         dataPoint = Point()
         dataPose = point_pose()
         contador = 0
-        # Puntos de pose para validar, en caso de faltar un punto en la imagen
-        # no se procedera a realizar las funciones de movimiento
-        pointsValidate = [0,11,12,13,14,15,16]
+        # Save data into the ROS messages and validate the visibility of some poses
+        pointsValidate = [0,11,12,13,14,15,16] # Poses to validate
         if self.results.pose_landmarks:
             for id, lm in enumerate(self.results.pose_landmarks.landmark):
                 dataPoint.x = lm.x
@@ -119,27 +146,30 @@ class HumanPose:
                 dataPose.id_pos = id
                 dataPose.position = dataPoint
                 dataPose.visibility = lm.visibility
+                # Validate poses to make sure the other scritp works good
                 if id in pointsValidate:
                     if lm.visibility > 0.5:
                         contador += 1
-                lmAux.points_pose.append(deepcopy(dataPose))
+                self.poses_data.points_pose.append(deepcopy(dataPose))
             if contador >= 7:
                 self.readyCapturePose = True
             else:
                 self.readyCapturePose = False
+        # Create a window to show up the image with the draw poses on the image
         if len(img) > 0:
             cv.namedWindow("IMAGE_FROM_HUMAN_POSE", cv.WINDOW_NORMAL)
             cv.moveWindow("IMAGE_FROM_HUMAN_POSE", 1280, 0)
             cv.imshow("IMAGE_FROM_HUMAN_POSE", img)
             cv.resizeWindow("IMAGE_FROM_HUMAN_POSE", 640, 480)
             cv.waitKey(1)
-        self.pubTopicDataNode.publish(lmAux)
+        # Save the image to a specific path, statusAction is a flag that is activated
+        # by a topic from the web interface
         if(self.statusAction):
                 cv.imwrite(IMG_PATH+'img_poses.jpg',self.cvFrame)
                 self.statusAction = False
                 rospy.loginfo("Save img!")
+        # Save the current image shape to the param server
         self.set_param_values()
-        #print("shape of img",img.shape)
 
     def image_source_callback(self, msg) -> None:
         self.dataReceivedTopic1 = True
@@ -153,62 +183,78 @@ class HumanPose:
         rospy.loginfo(self.statusAction)
 
     def start_subscribers(self) -> None:
+        """To start the subscribers, if the image source is from a path image topic will not be subscribed"""
         rospy.Subscriber(self.subTopicActionName,Bool,self.action_callback)
         if int(IMG_MODE) > 0:
             rospy.Subscriber(self.subTopicImageSourceName,Image, self.image_source_callback)
 
     def start_publishers(self) -> None:
+        """To start the publishers""" 
         self.pubTopicDataNode = rospy.Publisher(
             self._pubTopicPoseNodeName, human_pose, queue_size=10)
 
     def get_param_values(self) -> None:
-        # Obtener todos los paramatros 
-        self.imgName = rospy.get_param("/reemc_pose_imitation/image_source/name", default='javi1')
+        """Get the name image param value"""
+        self.imgName = rospy.get_param("/reemc_pose_imitation/image_source/name", default='javi1.jpg')
 
     def set_param_values(self) -> None:
+        """Set parameters to the server"""
         h,w,_ = self.cvFrame.shape
         rospy.set_param("/reemc_pose_imitation/image_source/weight",w)
         rospy.set_param("/reemc_pose_imitation/image_source/height",h)
 
 def main():
-    system('clear')
-    print("#"*70)
+    # Clean up the terminal
+    system('clear')  
+    # Write the main top title with the name of the node                                   
+    print("#"*70)                                           
     print(f"\t\t* TEST MODE *\t NODE: {NODE_NAME}")
     print("#"*70)
+    # Wait for one second, just to make sure roscore is running first
     time.sleep(1)
+    # Start the node
     rospy.init_node(NODE_NAME)
     rospy.loginfo(f"NODO {NODE_NAME} INICIADO.")
-    """Inicializar el objeto HumanPose"""
-    objNode = HumanPose()
-    objNode.subTopicImageSourceName = TOPIC_S1_IMG
-    objNode.subTopicActionName = TOPIC_S2_IMG
-    objNode.pubTopicPoseNodeName = TOPIC_P1_POSE
-    objNode.start_subscribers()
-    objNode.start_publishers()
+    # Create the object humanpose
+    humanpose = HumanPose()
+    # Set the names of the topics
+    humanpose.subTopicImageSourceName = TOPIC_S1_IMG
+    humanpose.subTopicActionName = TOPIC_S2_IMG
+    humanpose.pubTopicPoseNodeName = TOPIC_P1_POSE
+    # Start publishers and subscribers
+    humanpose.start_subscribers()
+    humanpose.start_publishers()
+    # Auxiliary variables to show up info just one time
     INFO1 = True
     INFO2 = True
-    # Modo de recuso de imagen video-stream o imagen
+    # Verify if the image source is from a specific path
     if int(IMG_MODE) == 0:
-        objNode.dataReceivedTopic1 = True
-    
-    ### MAKE FUNCTION FOR VALIDATIONS ALL DATA NEEDED
+        humanpose.dataReceivedTopic1 = True
+
+    # Main loop that is running while roscore is up
     while not rospy.is_shutdown():
-        objNode.get_param_values()
+        humanpose.get_param_values()
+        # Get the image if the source is from a path
         if int(IMG_MODE) == 0:
-                path_img = IMG_PATH+objNode.imgName
-                objNode.cvFrame = cv.imread(path_img)
-        if not objNode.dataReceivedTopic1 and INFO2:
-            print("[WARNING] Datos de imagen no recibidos, esperando datos...")
-            INFO2 = False
-        elif np.array(objNode.cvFrame).size:
-            objNode.find_pose(objNode.cvFrame) # coge los datos de pose con mediapipe
-            objNode.send_positions(objNode.cvFrame,draw=False) # crea tus variables de pose y los publica
-            if objNode.readyCapturePose and INFO1:
-                rospy.loginfo("READY TO CAPTURE DATA")
-                INFO1 = False
+                path_img = IMG_PATH+humanpose.imgName
+                humanpose.cvFrame = cv.imread(path_img)
+        if not humanpose.dataReceivedTopic1 and INFO1:
+            print("[WARNING] Data not available, waiting to receive data...")
+            INFO1 = False
+        # Make sure there is an image loaded
+        elif np.array(humanpose.cvFrame).size:
+            # Run the main functions in order to get the data and publish them through a ROS topic
+            humanpose.find_pose(humanpose.cvFrame)
+            humanpose.send_positions(humanpose.cvFrame)
+            if humanpose.readyCapturePose:
+                if INFO2:
+                    rospy.loginfo("Node is running...")
+                    INFO2 = False 
+                # Publish the data poses 
+                humanpose.pubTopicDataNode.publish(humanpose.poses_data)
     rospy.spin()
 
-
+# Run as a main program
 if __name__ == '__main__':
     try:
         main()

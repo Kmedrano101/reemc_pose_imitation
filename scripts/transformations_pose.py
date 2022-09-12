@@ -1,25 +1,38 @@
 #!/usr/bin/env python3
 
-# Importar modulos
-from ntpath import join
+"""Transformations_pose.py script to transform pose data into a angles for the reem-c robot
+
+    Descriptions:
+        Source needed: this script needs human_pose.py running in order to get the angles
+        Main function: get the angles for the reem-c robot and set them to the param server
+"""
+
+# Import modules from ROS resources
+
 import rospy
 from rospy.exceptions import ROSException
 from reemc_pose_imitation.msg import human_pose
+
+# import modules from others resource
+
 import time
-import os
+from os import system
 import numpy as np
 import math
-# Parametros y variables
+
+# Parameters and variables
 
 try:
+    # verify if parameters are available
     rospy.get_param_names()
 except ROSException:
-    print("[WARNING] No se puede obtener los nombres de parametros")
+    print("[WARNING] can not get the parameters")
 
 PACKAGE_NAME = "/reemc_pose_imitation"
 NODE_NAME = "transformations_pose"
 TOPIC_S1_POSE = PACKAGE_NAME+"/pose_human"
-# Class Agent
+
+# Class Transformations
 
 
 class Transformations:
@@ -56,39 +69,47 @@ class Transformations:
         self.dataHumanPose = msg
 
     def start_subscribers(self) -> None:
+        """To start the subscribers"""
         rospy.Subscriber(self._subTopicHumanPoseName,
                         human_pose, self.data_pose_callback)
 
     def start_publishers(self) -> None:
+        """No publishers needed"""
         pass
 
     def get_param_values(self) -> None:
-        # Obtener todos los paramatros de los archivos .yaml dentro de reem-c y reemc_pose_imitation
+        """Get the parameters from the parameter server"""
+        # Get parameters from the yaml files
         self.paramJointNames = rospy.get_param('/play_motion/motions/my_move2/joints')
         self.paramPoints = rospy.get_param('/play_motion/motions/my_move2/points')
         self.imgWeight = rospy.get_param("/reemc_pose_imitation/image_source/weight")
         self.imgHeight = rospy.get_param("/reemc_pose_imitation/image_source/height")
         self.localPoints = rospy.get_param('/reemc_pose_imitation/local_points/points')
-        # Params from web UI interface
+        # Get parameters from the web interface
         self.webPoints = rospy.get_param('/reemc_pose_imitation/web_points/points')
         self.mode = rospy.get_param("/reemc_pose_imitation/operation_mode", default=0)
+        # Save values to a list 
         Points = list(self.paramPoints[0].values())
         self.points = Points[0]
 
     def set_param_values(self) -> None:
+        """Set parameters to the param server"""
         AuxparamPoints = self.paramPoints[0]
         AuxparamPoints['positions'] = self.points
         self.paramPoints[0] = AuxparamPoints
         rospy.set_param('/play_motion/motions/my_move2/points',self.paramPoints)
 
-    def get_angle(self, p1, p2, p3) -> float: # input values make it as a dict 
+    def get_angle(self, p1, p2, p3) -> float:
+        """Get the angle from a given 3 points"""
         angle = 0
         points = []
+        # First verify if there are poses data
         if self.dataHumanPose.points_pose:
             for pose in self.dataHumanPose.points_pose:
-                h, w = self.imgHeight, self.imgWeight # height of img and weight of img
+                # Get the x and y values according to the shape of the image
+                h, w = self.imgHeight, self.imgWeight
                 cx, cy = int(pose.position.x * w), int(pose.position.y * h)
-                points.append([pose.id_pos, cx, cy]) # pose.position.z
+                points.append([pose.id_pos, cx, cy])
             x1, y1 = points[p1][1:]
             x2, y2 = points[p2][1:]
             x3, y3 = points[p3][1:]
@@ -98,26 +119,25 @@ class Transformations:
             if angle < 0:
                 angle += 360
             self.posePoints = points
-        #print(angle)
         return angle 
 
-    def map_value(self,value,out_min,out_max,in_min,in_max) -> float: # input map values min max make it in a dict of Joints [joint_1: [0.0,2.0,0.0,120.0]]
-        #value = float((value - robot_min) * (angle_max - angle_min) / (robot_max - robot_min) + angle_min)
+    def map_value(self,value,out_min,out_max,in_min,in_max) -> float: 
+        """Map values to an other shape, the new output shape is according 
+        to the limits of the robot angle"""
         value = float((value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
-        #print(value)
         return value
 
-    def get_distance(self,x1,x2,y1,y2):
+    def get_distance(self,x1,x2,y1,y2) -> float:
+        """Get distance between two (x,y) points"""
         distance = np.sqrt((x2-x1)**2+(y2-y1)**2)
         return distance
 
     def transformations(self) -> None:
-        # Points to be modified: 
+        """Main function to transform the angles"""
         self.get_param_values()
-        # Obtener los angulos para los Joints del Robot
         if self.mode == 0:
-            if self.get_angle(23,11,13):
-                # Joints Arm Left
+            if self.posePoints is not None:
+                # Get angles for arm left joints
                 angle_alfa1 = self.get_angle(13,11,23)
                 angle_beta1 = self.get_angle(15,11,23)
                 angle_gama1 = self.get_angle(15,13,11)
@@ -128,7 +148,7 @@ class Transformations:
                     self.localPoints[self.paramJointNames.index('arm_left_3_joint')] = -1.5
 
                 self.localPoints[self.paramJointNames.index('arm_left_4_joint')] = round(self.map_value(abs(185-angle_gama1),0.0,2.2,0.0,160.0),2)
-                # Joints Arm Right
+                # Get angles for arm right joints
                 angle_alfa2 = self.get_angle(24, 12, 14)
                 angle_beta2 = self.get_angle(24, 12, 16)
                 angle_gama2 = self.get_angle(12, 14, 16)
@@ -139,20 +159,18 @@ class Transformations:
                     self.localPoints[self.paramJointNames.index('arm_right_3_joint')] = -1.5
 
                 self.localPoints[self.paramJointNames.index('arm_right_4_joint')] = round(self.map_value(abs(185-angle_gama2),0.0,2.2,0.0,160.0),2) 
-                # Joints Head 
+                # Get angles for head joints
                 d1 = self.get_distance(self.posePoints[0][1],self.posePoints[7][1],self.posePoints[0][2],self.posePoints[7][2])
                 d2 = self.get_distance(self.posePoints[0][1],self.posePoints[8][1],self.posePoints[0][2],self.posePoints[8][2])
-                #print("distancia 1: ",d1)
-                #print("distancia 2: ",d2)
                 if d1 > d2:
-                    # Validar valor > Limites minimos
+                    # Validate limits to move the head joint to the right
                     if abs(d1-d2) < d1*0.58:
                         value1 = d1*0.58
                     else:
                         value1 = abs(d1-d2)
                     self.localPoints[self.paramJointNames.index('head_1_joint')] = -round(self.map_value(value1,0.0,1.6,0,(d1*0.58)),2)
                 else:
-                    # Validar valor > Limites minimos
+                    # Validate limits to move the head joint to the left
                     if abs(d2-d1) < d2*0.58:
                         value2 = d2*0.58
                     else:
@@ -165,28 +183,32 @@ class Transformations:
             for i in range(18):
                 self.points[i] = self.webPoints[i]
             self.set_param_values()
-            #print(self.paramJointNames)
-            #print(self.posePoints)
-            #print("2do Angulo: ",self.findAngle(13, 11, 23))
-            time.sleep(1)
-        #print("Modified: ", self.paramPoints)
         
 
 def main():
-    os.system('clear')
+    # Clean up the terminal
+    system('clear')
     print("#"*70)
+    # Write the main top title with the name of the node
     print(f"\t\t* TEST MODE *\t NODE: {NODE_NAME}")
     print("#"*70)
+    # Wait for one second, just to make sure roscore is running first
     time.sleep(1)
+    # Start the node
     rospy.init_node(NODE_NAME)
     rospy.loginfo(f"NODO {NODE_NAME} INICIADO.")
-    """Inicializar el objeto Transformations"""
-    objNode = Transformations()
-    objNode.subTopicHumanPoseName = TOPIC_S1_POSE
-    objNode.start_subscribers()
-    objNode.start_publishers()
+    # Create the object transformations
+    transformations = Transformations()
+    # Set the names of the topic
+    transformations.subTopicHumanPoseName = TOPIC_S1_POSE
+    # Start publishers and subscribers
+    transformations.start_subscribers()
+    transformations.start_publishers()
+
+    # Main loop that is running while roscore is up
     while not rospy.is_shutdown():
-        objNode.transformations()
+        # run the main function
+        transformations.transformations()
     rospy.spin()
 
 if __name__ == '__main__':
